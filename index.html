@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#070a1c" />
+    <meta name="description" content="Estilingue Estelar — salte de estrela em estrela com um único botão." />
+    <title>Estilingue Estelar</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='15' fill='%23070a1c'/%3E%3Ccircle cx='16' cy='16' r='9' fill='none' stroke='%23ffd27a' stroke-width='1.5' stroke-dasharray='3 3'/%3E%3Ccircle cx='16' cy='16' r='4' fill='%23ffd27a'/%3E%3Ccircle cx='25' cy='16' r='2.5' fill='%237fe7ff'/%3E%3C/svg%3E" />
+    <link rel="stylesheet" href="./src/styles.css" />
+  </head>
+  <body>
+    <canvas id="game" aria-label="Campo de jogo" role="img"></canvas>
+
+    <div id="ui">
+      <!-- HUD -->
+      <div id="hud" class="hud" hidden>
+        <div class="hud-left">
+          <div class="hud-score" id="hud-score" aria-label="Pontuação">0</div>
+          <div class="hud-meta"><span id="hud-star">Estrela 0/50</span> · <span id="hud-sector">Setor 1</span></div>
+        </div>
+        <div class="hud-combo" id="hud-combo" aria-label="Multiplicador">×1</div>
+        <button class="icon-btn hud-pause" data-action="pause" aria-label="Pausar (Esc)" title="Pausar (Esc)">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>
+        </button>
+        <div class="hint" id="hint" aria-live="polite"></div>
+      </div>
+
+      <!-- MENU -->
+      <section id="screen-menu" class="screen screen-menu" hidden aria-labelledby="title">
+        <div class="menu-card">
+          <h1 id="title" class="logo"><span>Estilingue</span><span>Estelar</span></h1>
+          <p class="tagline">Orbite. Solte. Seja capturado. Repita até o Farol.</p>
+          <div class="menu-best" id="menu-best"></div>
+          <div class="menu-actions">
+            <button class="btn btn-primary" data-action="play">Jogar — Travessia</button>
+            <button class="btn" data-action="play-infinite" id="btn-infinite" aria-describedby="infinite-note">Modo Infinito</button>
+            <p class="lock-note" id="infinite-note" hidden>Vença a Travessia para liberar o Modo Infinito.</p>
+            <div class="menu-row">
+              <button class="btn btn-small" data-action="achievements">Conquistas</button>
+              <button class="btn btn-small" data-action="settings">Configurações</button>
+              <button class="btn btn-small" data-action="help">Como jogar</button>
+            </div>
+          </div>
+          <p class="notice" id="storage-notice" hidden></p>
+          <p class="controls-hint">Espaço · clique · toque para soltar &nbsp;|&nbsp; Esc para pausar</p>
+        </div>
+      </section>
+
+      <!-- PAUSA -->
+      <section id="screen-pause" class="screen screen-dim" hidden aria-labelledby="pause-title">
+        <div class="panel">
+          <h2 id="pause-title">Pausado</h2>
+          <div class="panel-actions">
+            <button class="btn btn-primary" data-action="resume">Continuar</button>
+            <button class="btn" data-action="restart">Reiniciar</button>
+            <button class="btn" data-action="settings">Configurações</button>
+            <button class="btn" data-action="menu">Menu</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- RESULTADOS -->
+      <section id="screen-results" class="screen screen-dim" hidden aria-labelledby="res-title">
+        <div class="panel panel-results">
+          <h2 id="res-title">Fim da jornada</h2>
+          <p class="res-cause" id="res-cause"></p>
+          <div class="res-score-wrap">
+            <div class="res-score" id="res-score">0</div>
+            <div class="badge" id="res-record" hidden>Novo recorde!</div>
+          </div>
+          <dl class="res-stats" id="res-stats"></dl>
+          <div class="res-ach" id="res-ach" hidden></div>
+          <p class="res-seed">Semente <span id="res-seed"></span></p>
+          <div class="panel-actions">
+            <button class="btn btn-primary" data-action="play-again">Jogar de novo</button>
+            <button class="btn" data-action="same-seed">Mesma semente</button>
+            <button class="btn" data-action="menu">Menu</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- MODAL: CONFIGURAÇÕES -->
+      <div id="modal-settings" class="modal" role="dialog" aria-modal="true" aria-labelledby="settings-title" hidden>
+        <div class="panel">
+          <h2 id="settings-title">Configurações</h2>
+          <form class="settings" id="settings-form">
+            <label class="field">
+              <span>Volume geral <output id="vol-out">70%</output></span>
+              <input type="range" min="0" max="100" step="5" id="set-volume" />
+            </label>
+            <label class="field field-check"><input type="checkbox" id="set-music" /> <span>Música</span></label>
+            <label class="field field-check"><input type="checkbox" id="set-sfx" /> <span>Efeitos sonoros</span></label>
+            <label class="field">
+              <span>Movimento e efeitos</span>
+              <select id="set-motion">
+                <option value="auto">Seguir o sistema</option>
+                <option value="full">Completos</option>
+                <option value="reduced">Reduzidos (sem tremor ou flash)</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>Linha-guia de mira</span>
+              <select id="set-guide">
+                <option value="start">Nas primeiras estrelas</option>
+                <option value="always">Sempre</option>
+                <option value="never">Nunca</option>
+              </select>
+            </label>
+            <div class="settings-row">
+              <button type="button" class="btn btn-small" data-action="replay-tutorial">Mostrar dicas novamente</button>
+              <button type="button" class="btn btn-small btn-danger" data-action="reset-progress" id="btn-reset">Apagar progresso</button>
+            </div>
+          </form>
+          <div class="panel-actions">
+            <button class="btn btn-primary" data-action="close-modal">Fechar</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- MODAL: CONQUISTAS -->
+      <div id="modal-achievements" class="modal" role="dialog" aria-modal="true" aria-labelledby="ach-title" hidden>
+        <div class="panel panel-wide">
+          <h2 id="ach-title">Conquistas</h2>
+          <ul class="ach-list" id="ach-list"></ul>
+          <h3>Rastro</h3>
+          <div class="trail-list" id="trail-list" role="radiogroup" aria-label="Rastro"></div>
+          <p class="totals" id="totals"></p>
+          <div class="panel-actions">
+            <button class="btn btn-primary" data-action="close-modal">Fechar</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- MODAL: COMO JOGAR -->
+      <div id="modal-help" class="modal" role="dialog" aria-modal="true" aria-labelledby="help-title" hidden>
+        <div class="panel panel-wide">
+          <h2 id="help-title">Como jogar</h2>
+          <ol class="help">
+            <li><b>Você orbita sozinho.</b> Aperte <kbd>Espaço</kbd>, clique ou toque para <b>soltar</b> — você segue em linha reta.</li>
+            <li><b>Passe perto de uma estrela à frente</b> (dentro do círculo tracejado) e ela captura você.</li>
+            <li><b>Rente ao núcleo = Perfeito.</b> Aumenta o multiplicador (até ×8). Mas tocar o núcleo destrói você.</li>
+            <li><b>Não demore.</b> O anel ao redor da órbita é o relógio: quando acaba, a estrela colapsa.</li>
+            <li>Desvie de <b>detritos</b>, cuidado com o <b>vazio</b> nas laterais e colete <b>fragmentos</b>.</li>
+            <li>Pular uma estrela inteira é um <b>Salto duplo</b> — vale bônus. A cada 10 estrelas há um <b>Refúgio</b>.</li>
+            <li>Alcance o <b>Farol</b> (estrela 50) para vencer e liberar o Modo Infinito.</li>
+          </ol>
+          <p class="controls-hint"><kbd>Espaço</kbd>/<kbd>↑</kbd>/<kbd>W</kbd>/clique/toque: soltar · <kbd>Esc</kbd>/<kbd>P</kbd>: pausar · <kbd>Enter</kbd>: confirmar</p>
+          <div class="panel-actions">
+            <button class="btn btn-primary" data-action="close-modal">Entendi</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="announcer" class="sr-only" aria-live="polite"></div>
+      <div id="fatal" class="fatal" hidden role="alert"></div>
+    </div>
+
+    <noscript><p class="noscript">Estilingue Estelar precisa de JavaScript para funcionar.</p></noscript>
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>
